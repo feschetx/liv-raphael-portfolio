@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "fetchedAt": "2026-11-05T12:19:28.192Z",
+  "source": "Yahoo Finance delayed market data",
+  "expectedRefreshSeconds": 300,
+  "quotes": {
+    "samsung": {
+      "symbol": "005930.KS",
+      "currency": "KRW",
+      "price": 201500,
+      "asOf": "2026-11-05T06:30:29.000Z",
+      "marketOpen": false,
+      "exchange": "KSC",
+      "timezone": "Asia/Seoul"
+    },
+    "eurkrw": {
+      "symbol": "EURKRW=X",
+      "currency": "KRW",
+      "price": 1506.9,
+      "asOf": "2026-11-05T12:14:27.000Z",
+      "marketOpen": true,
+      "exchange": "CCY",
+      "timezone": "Europe/London"
+    },
+    "eurusd": {
+      "symbol": "EURUSD=X",
+      "currency": "USD",
+      "price": 1.1227,
+      "asOf": "2026-11-05T12:18:27.000Z",
+      "marketOpen": true,
+      "exchange": "CCY",
+      "timezone": "Europe/London"
+    }
+  }
+}
