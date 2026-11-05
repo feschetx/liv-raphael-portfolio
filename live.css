@@ -1,0 +1,6 @@
+.live-panel{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0 18px;padding:14px 16px;background:white;border:1px solid var(--line);border-radius:12px}
+.live-copy{flex:1;min-width:220px}.live-copy p{margin:4px 0 0;color:#606b7b;font-size:12px;line-height:1.55}
+#live-status{font-weight:650;font-size:14px}#live-status[data-state="fresh"]{color:#0a7850}#live-status[data-state="stale"],#live-status[data-state="offline"]{color:#92520b}
+#refresh-prices{font:inherit;font-size:13px;border:1px solid #cdd2df;background:#fff;border-radius:8px;padding:9px 13px;cursor:pointer;white-space:nowrap}#refresh-prices:hover{background:#f5f5ff}#refresh-prices:focus-visible{outline:3px solid #9a96ff;outline-offset:2px}#refresh-prices:disabled{opacity:.55;cursor:wait}
+.quote-times{font-variant-numeric:tabular-nums}.live-saved-note{font-size:12px;color:#606b7b;margin:6px 0}
+@media(max-width:640px){.live-panel{padding:12px}.live-copy{min-width:0;width:100%;flex-basis:100%}#refresh-prices{min-height:42px}.ph{flex-wrap:wrap}}
