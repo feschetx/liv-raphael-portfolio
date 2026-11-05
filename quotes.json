@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "fetchedAt": "2026-11-05T12:19:28.192Z",
+  "fetchedAt": "2026-11-05T12:22:14.809Z",
   "source": "Yahoo Finance delayed market data",
   "expectedRefreshSeconds": 300,
   "quotes": {
@@ -16,8 +16,8 @@
     "eurkrw": {
       "symbol": "EURKRW=X",
       "currency": "KRW",
-      "price": 1506.9,
-      "asOf": "2026-11-05T12:14:27.000Z",
+      "price": 1507.1,
+      "asOf": "2026-11-05T12:19:27.000Z",
       "marketOpen": true,
       "exchange": "CCY",
       "timezone": "Europe/London"
@@ -25,8 +25,8 @@
     "eurusd": {
       "symbol": "EURUSD=X",
       "currency": "USD",
-      "price": 1.1227,
-      "asOf": "2026-11-05T12:18:27.000Z",
+      "price": 1.1228,
+      "asOf": "2026-11-05T12:21:27.000Z",
       "marketOpen": true,
       "exchange": "CCY",
       "timezone": "Europe/London"
