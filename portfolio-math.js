@@ -16,7 +16,7 @@ export function modelBondPrice(isoDate, annualYield) {
 }
 
 export function validateFeed(feed, now = Date.now()) {
-  if (feed?.version !== 1 || !Number.isFinite(Date.parse(feed.fetchedAt))) throw new Error('Invalid price feed');
+  if (![1,2].includes(feed?.version) || !Number.isFinite(Date.parse(feed.fetchedAt))) throw new Error('Invalid price feed');
   if (Date.parse(feed.fetchedAt) > now + 120000) throw new Error('Price feed timestamp is in the future');
   for (const key of ['samsung', 'eurkrw', 'eurusd']) {
     const quote = feed.quotes?.[key];
@@ -25,6 +25,19 @@ export function validateFeed(feed, now = Date.now()) {
     const time = Date.parse(quote?.asOf);
     if (!Number.isFinite(quote?.price) || quote.price <= 0 || !Number.isFinite(time) || time > now + 120000) throw new Error('Missing or invalid quote: ' + key);
     if (now - time > 7 * 86400000) throw new Error('Quote is more than a week old: ' + key);
+  }
+  if(feed.version===2) {
+    if(!Array.isArray(feed.history)||!feed.history.length||!Array.isArray(feed.intraday?.points)||!feed.intraday.points.length)throw new Error('Missing chart history');
+    let previous='';
+    for(const row of feed.history) {
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(row.date)||row.date<=previous||['samsung','eurkrw','eurusd'].some(key=>!Number.isFinite(row[key])||row[key]<=0))throw new Error('Invalid daily history');
+      previous=row.date;
+    }
+    let prior=-Infinity;
+    for(const row of feed.intraday.points) {
+      if(!Number.isFinite(row.time)||row.time<=prior||row.time>now+120000||['samsung','eurkrw','eurusd'].some(key=>!Number.isFinite(row[key])||row[key]<=0))throw new Error('Invalid intraday history');
+      prior=row.time;
+    }
   }
   return feed;
 }

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['scripts/collect-quotes.mjs', '.github/workflows/refresh-quotes.yml']
+    paths: ['scripts/collect-quotes.mjs', 'market-series.js', '.github/workflows/refresh-quotes.yml']
 permissions:
   contents: read
 concurrency:

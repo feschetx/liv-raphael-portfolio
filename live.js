@@ -1,4 +1,5 @@
-import {validateFeed, valuePortfolio} from './portfolio-math.js';
+import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261105-charts1';
+import {createChartController} from './portfolio-charts.js?v=20261105-charts1';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -10,6 +11,7 @@ const price = new Intl.NumberFormat(undefined, {maximumFractionDigits:0});
 const time = new Intl.DateTimeFormat(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
 const signed = (n, percent=false) => (n < 0 ? '−' : n > 0 ? '+' : '') + (percent ? Math.abs(n).toFixed(2) + '%' : money.format(Math.abs(n)));
 let portfolio, lastGood, busy = false;
+const charts=createChartController();
 
 function state(text, mode) {status.textContent = text; status.dataset.state = mode;}
 function updateNumber(panel, field, value, text) {
@@ -47,7 +49,8 @@ function render(feed) {
   const staleQuotes = Object.values(q).some(quote=>quote.marketOpen && Date.now() - Date.parse(quote.asOf) > 30 * 60000);
   state(staleFeed ? 'Price feed is late — showing last available quotes' : staleQuotes ? 'Market quotes are delayed' : 'Automatic updates on · ' + (q.samsung.marketOpen ? 'Samsung market open' : 'Samsung market closed'), staleFeed || staleQuotes ? 'stale' : 'fresh');
   checked.textContent = 'Feed collected ' + time.format(new Date(feed.fetchedAt)) + '. Last checked ' + time.format(new Date()) + '.';
-  document.getElementById('snapshot-date').textContent = `Current holdings use the quotes below. Saved daily history runs through ${portfolio.history.at(-1).date}.`;
+  charts.update(portfolio,feed);
+  document.getElementById('snapshot-date').textContent = 'Holdings and both chart views update automatically from the dated market feed.';
 }
 async function refresh() {
   if (busy) return;
