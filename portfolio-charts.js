@@ -4,6 +4,21 @@ const hkDate=milliseconds=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Hong_
 const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(key=>[key,{price:row[key]}]));
 const euro=new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR'});
 const signed=value=>(value<0?'−':'+')+euro.format(Math.abs(value));
+const pct=new Intl.NumberFormat(undefined,{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2,signDisplay:'exceptZero'});
+const asPercent=n=>pct.format(n/100);
+
+// Chain returns, treating new capital as available at the start of its interval.
+export function performancePoints(points) {
+  let growth=1;
+  return points.map((p,i)=>{
+    if(i) {
+      const prev=points[i-1],opening=prev.value+(p.invested-prev.invested);
+      if(!(opening>0))throw new Error('Performance requires a positive opening balance');
+      growth*=p.value/opening;
+    }
+    return {...p,value:(growth-1)*100};
+  });
+}
 const htmlDate=date=>new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T00:00:00Z'));
 
 export function chartData(portfolio,feed,mode,now=Date.now()) {
@@ -33,22 +48,23 @@ function svgNode(name,attributes={},text) {
   return node;
 }
 
-function drawChart(container,series,mode) {
+function drawChart(container,series,mode,percent=false) {
   if(!series.length||!series[0].points.length){container.textContent='Intraday prices are not available yet.';return;}
-  const same=series.length===2&&series[0].points.length===series[1].points.length&&series[0].points.every((p,i)=>Math.abs(p.value-series[1].points[i].value)<.005);
+  const same=series.length===2&&series[0].points.length===series[1].points.length&&series[0].points.every((p,i)=>Math.abs(p.value-series[1].points[i].value)<(percent?1e-9:.005));
   const visible=same?[{...series[0],name:'Liv & Raphael'}]:series;
   const values=visible.flatMap(s=>s.points.map(p=>p.value));
-  const min=Math.min(...values),max=Math.max(...values),span=Math.max(max-min,mode==='intraday'?.8:5);
+  const min=Math.min(...values),max=Math.max(...values),span=Math.max(max-min,percent?0.1:mode==='intraday'?.8:5);
   const rough=span/5,scale=10**Math.floor(Math.log10(rough));
   const step=[1,2,5,10].find(n=>n*scale>=rough)*scale;
   const low=Math.floor((min-span*.1)/step)*step,high=Math.ceil((max+span*.1)/step)*step;
   const first=visible[0].points[0].time,last=visible[0].points.at(-1).time;
   const x=time=>58+(time-first)/Math.max(last-first,1)*744,y=value=>292-(value-low)/(high-low)*270;
-  const svg=svgNode('svg',{viewBox:'0 0 820 340',width:'100%',role:'img','aria-label':mode==='intraday'?'Intraday portfolio value in euros. Times shown in Korea Standard Time.':'Daily portfolio values since purchase, including latest available quotes.'});
+  const svg=svgNode('svg',{viewBox:'0 0 820 340',width:'100%',role:'img','aria-label':percent?'Portfolio performance in percent for the selected period':mode==='intraday'?'Intraday portfolio value in euros. Times shown in Korea Standard Time.':'Daily portfolio values since purchase, including latest available quotes.'});
   for(let value=low;value<=high+step/10;value+=step) {
-    svg.append(svgNode('line',{x1:58,y1:y(value),x2:802,y2:y(value),stroke:'#e8edf5'}),svgNode('text',{x:49,y:y(value)+4,'text-anchor':'end','font-size':11,fill:'#606b7b'},'€'+value.toFixed(step<1?1:0)));
+    const tick=Number(value.toFixed(Math.max(0,-Math.floor(Math.log10(step)))));
+    svg.append(svgNode('line',{x1:58,y1:y(value),x2:802,y2:y(value),stroke:percent&&tick===0?'#8995aa':'#e8edf5'}),svgNode('text',{x:49,y:y(value)+4,'text-anchor':'end','font-size':11,fill:'#606b7b'},percent?tick+'%':'€'+value.toFixed(step<1?1:0)));
   }
-  if(mode==='history'&&series[0].cost>=low&&series[0].cost<=high) {
+  if(!percent&&mode==='history'&&series[0].cost>=low&&series[0].cost<=high) {
     const ref=y(series[0].cost);
     svg.append(svgNode('line',{x1:58,y1:ref,x2:802,y2:ref,stroke:'#a6afc0','stroke-dasharray':'5 4'}),svgNode('text',{x:800,y:ref-6,'text-anchor':'end','font-size':10,fill:'#606b7b'},'Invested '+euro.format(series[0].cost)));
   }
@@ -57,7 +73,7 @@ function drawChart(container,series,mode) {
     svg.append(svgNode('polyline',{fill:'none',stroke:s.color,'stroke-width':2.4,points:s.points.map(p=>`${x(p.time).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ')}));
     for(const p of s.points) {
       const dot=svgNode('circle',{cx:x(p.time),cy:y(p.value),r:mode==='intraday'?2:2.6,fill:s.color});
-      dot.append(svgNode('title',{},`${s.name} · ${tooltipTime.format(new Date(p.time))}${mode==='intraday'?' KST':''} · ${euro.format(p.value)}`));svg.append(dot);
+      dot.append(svgNode('title',{},`${s.name} · ${tooltipTime.format(new Date(p.time))}${mode==='intraday'?' KST':''} · ${percent?asPercent(p.value):euro.format(p.value)}`));svg.append(dot);
     }
   }
   const count=mode==='intraday'?5:7;
@@ -86,16 +102,36 @@ function updateHistory(portfolio,feed) {
 }
 
 export function createChartController() {
-  let active='history',portfolio,feed;
+  let active='history',portfolio,feed,percent=false,asOf;
+  try{percent=localStorage.getItem('portfolio-chart-unit')==='percent';}catch{}
   const historyButton=document.getElementById('view-history'),intradayButton=document.getElementById('view-intraday');
+  const units=document.createElement('div');
+  units.className='chart-toggle';units.setAttribute('role','group');units.setAttribute('aria-label','Chart measure');
+  const unitButtons=['Value (€)','Performance (%)'].map((label,i)=>{
+    const button=document.createElement('button');
+    button.type='button';button.textContent=label;button.disabled=true;button.setAttribute('aria-pressed',String(!i));
+    button.addEventListener('click',()=>{
+      percent=Boolean(i);try{localStorage.setItem('portfolio-chart-unit',percent?'percent':'euro');}catch{}
+      render();
+    });
+    units.append(button);return button;
+  });
+  historyButton.parentElement.after(units);
   function render() {
     if(!feed)return;
-    const data=chartData(portfolio,feed,active);
-    drawChart(document.getElementById('portfolio-chart'),data.series,active);
+    const data=chartData(portfolio,feed,active,asOf);
+    const series=percent?data.series.map(s=>({...s,points:performancePoints(s.points)})):data.series;
+    drawChart(document.getElementById('portfolio-chart'),series,active,percent);
+    unitButtons.forEach((button,i)=>{button.disabled=false;button.setAttribute('aria-pressed',String(Boolean(i)===percent));});
     historyButton.setAttribute('aria-pressed',String(active==='history'));
     intradayButton.setAttribute('aria-pressed',String(active==='intraday'));
-    document.getElementById('chart-title').textContent=active==='intraday'?'Intraday portfolio value':'Portfolio value since 7 July';
+    document.getElementById('chart-title').textContent=percent?(active==='intraday'?'Intraday portfolio performance':'Portfolio performance since 7 July'):(active==='intraday'?'Intraday portfolio value':'Portfolio value since 7 July');
     document.getElementById('chart-date').textContent=active==='intraday'?htmlDate(feed.intraday.sessionDate)+' · KST':'through '+htmlDate(data.rows.at(-1).date);
+    if(percent){
+      document.getElementById('chart-summary').textContent=series.map(s=>s.name+': '+asPercent(s.points.at(-1).value)).join(' · ');
+      document.getElementById('chart-note').textContent=(active==='intraday'?'Both lines start at 0% at the first quote of the day (Korea time).':'Both lines start at 0% on 7 July.')+' Returns compound between chart points. New money counts toward the opening balance of the interval in which it was added, so a deposit alone does not change performance.';
+      return;
+    }
     const changes=data.series.map(s=>{
       const current=s.points.at(-1).value,base=active==='intraday'?s.points[0].value:s.cost;
       const contribution=active==='intraday'?s.points.at(-1).invested-s.points[0].invested:0;
@@ -107,5 +143,8 @@ export function createChartController() {
   }
   historyButton.addEventListener('click',()=>{active='history';render();});
   intradayButton.addEventListener('click',()=>{active='intraday';render();});
-  return {update(p,f){portfolio=p;feed=f;intradayButton.disabled=!(f.intraday?.points?.length>=2);if(intradayButton.disabled)active='history';updateHistory(p,f);render();}};
+  return {showSnapshot(p){
+    portfolio=p;asOf=Date.parse(p.snapshot.as_of+'T12:00:00+08:00');
+    feed={history:p.history,quotes:rowQuotes(p.snapshot)};intradayButton.disabled=true;render();
+  },update(p,f){portfolio=p;feed=f;asOf=undefined;intradayButton.disabled=!(f.intraday?.points?.length>=2);if(intradayButton.disabled)active='history';updateHistory(p,f);render();}};
 }

@@ -1,5 +1,5 @@
 import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
-import {createChartController} from './portfolio-charts.js?v=20261111-nvda1';
+import {createChartController} from './portfolio-charts.js?v=20261111-performance';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -68,6 +68,7 @@ async function refresh() {
       const p = await fetch(new URL('./portfolio-data.json',import.meta.url), {cache:'no-store', signal:AbortSignal.timeout(12000)});
       if (!p.ok) throw new Error('Saved holdings unavailable');
       portfolio = await p.json();
+      charts.showSnapshot(portfolio);
     }
     const response = await fetch(FEED + '?minute=' + Math.floor(Date.now()/60000), {cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal:AbortSignal.timeout(12000)});
     if (!response.ok) throw new Error('Price feed unavailable');
