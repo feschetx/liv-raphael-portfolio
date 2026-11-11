@@ -1,5 +1,5 @@
-import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261105-charts1';
-import {createChartController} from './portfolio-charts.js?v=20261105-charts1';
+import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
+import {createChartController} from './portfolio-charts.js?v=20261111-nvda1';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -31,6 +31,7 @@ function render(feed) {
     if (!panel) throw new Error('Missing portfolio panel');
     const v = valuePortfolio(position, feed.quotes, portfolio.snapshot.bond_yield, valuationDate);
     updateNumber(panel,'total',v.total,money.format(v.total));
+    updateNumber(panel,'invested',v.invested,money.format(v.invested));
     updateNumber(panel,'gain',v.gain,signed(v.gain));
     updateNumber(panel,'return',v.returnPercent,signed(v.returnPercent,true));
     updateNumber(panel,'stock-price',feed.quotes.samsung.price,'₩' + price.format(feed.quotes.samsung.price));
@@ -39,12 +40,18 @@ function render(feed) {
     updateNumber(panel,'bond-price',v.bondPrice,v.bondPrice.toFixed(2) + ' ·model');
     updateNumber(panel,'bond-value',v.bond,money.format(v.bond));
     updateNumber(panel,'bond-gain',v.bond-position.bond_cost,signed(v.bond-position.bond_cost));
+    if(position.nvidia) {
+      updateNumber(panel,'nvidia-price',feed.quotes.nvidia.price,'US$'+feed.quotes.nvidia.price.toFixed(2));
+      updateNumber(panel,'nvidia-value',v.nvidia,money.format(v.nvidia));
+      updateNumber(panel,'nvidia-gain',v.nvidia-position.nvidia.cost,signed(v.nvidia-position.nvidia.cost));
+    }
     panel.querySelector('[data-field="as-of"]').textContent = 'Latest available quotes';
     totals.push(`${child}: ${money.format(v.total)}`);
   }
   document.getElementById('latest-values').textContent = totals.join(' · ') + ' · bond estimated';
   const q = feed.quotes;
   times.textContent = `Samsung quote: ${time.format(new Date(q.samsung.asOf))}. EUR/KRW: ${time.format(new Date(q.eurkrw.asOf))}. EUR/USD: ${time.format(new Date(q.eurusd.asOf))}. Times shown in your time zone.`;
+  if(q.nvidia)times.textContent+=` Nvidia: ${time.format(new Date(q.nvidia.asOf))} (${q.nvidia.session??'latest available quote'}).`;
   const staleFeed = Date.now() - Date.parse(feed.fetchedAt) > 15 * 60000;
   const staleQuotes = Object.values(q).some(quote=>quote.marketOpen && Date.now() - Date.parse(quote.asOf) > 30 * 60000);
   state(staleFeed ? 'Price feed is late — showing last available quotes' : staleQuotes ? 'Market quotes are delayed' : 'Automatic updates on · ' + (q.samsung.marketOpen ? 'Samsung market open' : 'Samsung market closed'), staleFeed || staleQuotes ? 'stale' : 'fresh');

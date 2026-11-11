@@ -32,3 +32,20 @@ test('a weekend quote keeps its actual market date',()=>{
   const weekend=structuredClone(feed);weekend.quotes.samsung.asOf='2026-10-28T06:30:00Z';
   assert.equal(validateFeed(weekend,now).quotes.samsung.asOf,'2026-10-28T06:30:00Z');
 });
+
+test('Nvidia is added only to Raphael from the purchase date, with investment separated from gains',()=>{
+  const purchase=data.positions.Raphael.nvidia;
+  assert.equal(purchase.quantity,10);
+  assert.equal(data.positions.Liv.nvidia,undefined);
+  const quotes={...feed.quotes,nvidia:{price:purchase.buy_price},eurusd:{price:purchase.purchase_fx}};
+  const before=valuePortfolio(data.positions.Raphael,quotes,.0435,'2026-11-10');
+  const atPurchase=valuePortfolio(data.positions.Raphael,quotes,.0435,'2026-11-11');
+  const base=valuePortfolio(data.positions.Liv,quotes,.0435,'2026-11-11');
+  assert.equal(before.nvidia,0);
+  assert.ok(Math.abs(atPurchase.total-base.total-purchase.cost)<1e-8);
+  assert.ok(Math.abs(atPurchase.gain-base.gain)<1e-8);
+  assert.equal(atPurchase.invested,300+purchase.cost);
+  assert.throws(()=>valuePortfolio(data.positions.Raphael,feed.quotes,.0435,'2026-11-11'),/Missing Nvidia/);
+  const moved=valuePortfolio(data.positions.Raphael,{...quotes,nvidia:{price:purchase.buy_price+1}},.0435,'2026-11-11');
+  assert.ok(Math.abs(moved.gain-atPurchase.gain-10/purchase.purchase_fx)<1e-8);
+});

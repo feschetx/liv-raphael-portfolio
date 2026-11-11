@@ -38,3 +38,17 @@ test('both charts finish at the same portfolio value as the quote cards',async()
   }
   assert.equal(chartData(portfolio,feed,'history',snapshot.time).rows.at(-1).date,'2026-11-05');
 });
+
+test('Nvidia charts reconcile with current cards and do not backdate the purchase',async()=>{
+  const portfolio=JSON.parse(await fs.readFile(new URL('../portfolio-data.json',import.meta.url),'utf8'));
+  const purchase=portfolio.positions.Raphael.nvidia,now=Date.parse(purchase.recorded_at)+300000;
+  const market={samsung:210000,eurkrw:1500,eurusd:purchase.purchase_fx,nvidia:purchase.buy_price};
+  const quotes=Object.fromEntries(Object.entries(market).map(([key,price])=>[key,{price}]));
+  const feed={quotes,history:portfolio.history,intraday:{points:[{...market,time:Date.parse(purchase.recorded_at)-300000},{...market,time:now}]}};
+  for(const mode of ['history','intraday']) {
+    const result=chartData(portfolio,feed,mode,now),liv=result.series[0],raphael=result.series[1];
+    assert.ok(Math.abs(raphael.points.at(-1).value-valuePortfolio(portfolio.positions.Raphael,quotes,.0435,'2026-11-11').total)<1e-8);
+    assert.equal(raphael.points[0].value,liv.points[0].value);
+    assert.ok(Math.abs(raphael.points.at(-1).value-liv.points.at(-1).value-purchase.cost)<1e-8);
+  }
+});

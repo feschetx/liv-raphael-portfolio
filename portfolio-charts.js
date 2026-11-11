@@ -1,7 +1,7 @@
-import {valuePortfolio} from './portfolio-math.js?v=20261105-charts1';
+import {valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
 
 const hkDate=milliseconds=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Hong_Kong',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(milliseconds));
-const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd'].map(key=>[key,{price:row[key]}]));
+const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(key=>[key,{price:row[key]}]));
 const euro=new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR'});
 const signed=value=>(value<0?'−':'+')+euro.format(Math.abs(value));
 const htmlDate=date=>new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T00:00:00Z'));
@@ -10,12 +10,18 @@ export function chartData(portfolio,feed,mode,now=Date.now()) {
   let rows;
   if(mode==='intraday')rows=(feed.intraday?.points??[]).map(row=>({...row,date:hkDate(row.time)}));
   else {
-    const dated=new Map((feed.history??portfolio.history).map(row=>[row.date,{...row,time:Date.parse(row.date+'T00:00:00Z')}]));
     const date=hkDate(now);
-    dated.set(date,{date,time:Date.parse(date+'T00:00:00Z'),samsung:feed.quotes.samsung.price,eurkrw:feed.quotes.eurkrw.price,eurusd:feed.quotes.eurusd.price});
+    const dated=new Map((feed.history??portfolio.history).filter(row=>row.date<=date).map(row=>[row.date,{...row,time:Date.parse(row.date+'T00:00:00Z')}]));
+    dated.set(date,{date,time:Date.parse(date+'T00:00:00Z'),samsung:feed.quotes.samsung.price,eurkrw:feed.quotes.eurkrw.price,eurusd:feed.quotes.eurusd.price,nvidia:feed.quotes.nvidia?.price});
     rows=[...dated.values()].sort((a,b)=>a.time-b.time);
   }
-  const series=Object.entries(portfolio.positions).map(([name,position],index)=>({name,color:index===0?'#4f46e5':'#0d9488',cost:position.cost,points:rows.map(row=>({time:row.time,date:row.date,value:mode==='history'&&row.date===position.purchase_date?position.cost:valuePortfolio(position,rowQuotes(row),portfolio.snapshot.bond_yield,row.date).total}))}));
+  const series=Object.entries(portfolio.positions).map(([name,position],index)=>{
+    const points=rows.map(row=>{
+      const result=valuePortfolio(position,rowQuotes(row),portfolio.snapshot.bond_yield,row.date,mode==='intraday'?row.time:undefined);
+      return {time:row.time,date:row.date,value:mode==='history'&&row.date===position.purchase_date?position.cost:result.total,invested:result.invested};
+    });
+    return {name,color:index===0?'#4f46e5':'#0d9488',cost:points.at(-1)?.invested??position.cost,points};
+  });
   return {rows,series};
 }
 
@@ -91,11 +97,13 @@ export function createChartController() {
     document.getElementById('chart-title').textContent=active==='intraday'?'Intraday portfolio value':'Portfolio value since 7 July';
     document.getElementById('chart-date').textContent=active==='intraday'?htmlDate(feed.intraday.sessionDate)+' · KST':'through '+htmlDate(data.rows.at(-1).date);
     const changes=data.series.map(s=>{
-      const current=s.points.at(-1).value,base=active==='intraday'?s.points[0].value:s.cost,delta=current-base;
+      const current=s.points.at(-1).value,base=active==='intraday'?s.points[0].value:s.cost;
+      const contribution=active==='intraday'?s.points.at(-1).invested-s.points[0].invested:0;
+      const delta=current-base-contribution;
       return `${s.name}: ${euro.format(current)} (${signed(delta)}, ${delta<0?'−':'+'}${Math.abs(delta/base*100).toFixed(2)}%)`;
     });
-    document.getElementById('chart-summary').textContent=changes.join(' · ')+(active==='intraday'?' since the first available point of the day.':' since the original investment.');
-    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Samsung keeps its last quoted price outside market hours; currency moves can still change the portfolio. The bond remains modeled.':'Daily market history is refreshed automatically. The last point uses the latest available stock and currency quotes; the bond remains modeled. Hover a point for its date and value.';
+    document.getElementById('chart-summary').textContent=changes.join(' · ')+(active==='intraday'?' change excluding added investment since the first available point.':' gain versus total recorded investment.');
+    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Stocks retain their latest quote outside trading hours; currencies can still move. New investments create a step in portfolio value and are excluded from the displayed change. The bond remains modeled.':'Daily market history is refreshed automatically. Nvidia enters Raphael’s portfolio on 11 November 2026; the increase from adding money is not a gain. The last point uses the latest available stock and currency quotes. The bond remains modeled.';
   }
   historyButton.addEventListener('click',()=>{active='history';render();});
   intradayButton.addEventListener('click',()=>{active='intraday';render();});
