@@ -102,8 +102,10 @@ function updateHistory(portfolio,feed) {
 }
 
 export function createChartController() {
-  let active='history',portfolio,feed,percent=false,asOf;
+  let active='history',portfolio,feed,percent=false,asOf,owner='All';
   try{percent=localStorage.getItem('portfolio-chart-unit')==='percent';}catch{}
+  const owners=['Liv','Raphael','All'];
+  try{const saved=localStorage.getItem('portfolio-chart-owner');if(owners.includes(saved))owner=saved;}catch{}
   const historyButton=document.getElementById('view-history'),intradayButton=document.getElementById('view-intraday');
   const units=document.createElement('div');
   units.className='chart-toggle';units.setAttribute('role','group');units.setAttribute('aria-label','Chart measure');
@@ -117,22 +119,37 @@ export function createChartController() {
     units.append(button);return button;
   });
   historyButton.parentElement.after(units);
+  const ownerGroup=document.createElement('div');
+  ownerGroup.className='chart-toggle';ownerGroup.setAttribute('role','group');ownerGroup.setAttribute('aria-label','Portfolio shown');
+  const ownerButtons=owners.map(name=>{
+    const button=document.createElement('button');
+    button.type='button';button.textContent=name;button.disabled=true;
+    button.setAttribute('aria-pressed',String(name===owner));
+    button.addEventListener('click',()=>{
+      owner=name;try{localStorage.setItem('portfolio-chart-owner',name);}catch{}
+      render();
+    });
+    ownerGroup.append(button);return button;
+  });
+  historyButton.parentElement.before(ownerGroup);
   function render() {
     if(!feed)return;
     const data=chartData(portfolio,feed,active,asOf);
-    const series=percent?data.series.map(s=>({...s,points:performancePoints(s.points)})):data.series;
+    const selected=owner==='All'?data.series:data.series.filter(s=>s.name===owner);
+    const series=percent?selected.map(s=>({...s,points:performancePoints(s.points)})):selected;
     drawChart(document.getElementById('portfolio-chart'),series,active,percent);
     unitButtons.forEach((button,i)=>{button.disabled=false;button.setAttribute('aria-pressed',String(Boolean(i)===percent));});
+    ownerButtons.forEach((button,i)=>{button.disabled=false;button.setAttribute('aria-pressed',String(owners[i]===owner));});
     historyButton.setAttribute('aria-pressed',String(active==='history'));
     intradayButton.setAttribute('aria-pressed',String(active==='intraday'));
     document.getElementById('chart-title').textContent=percent?(active==='intraday'?'Intraday portfolio performance':'Portfolio performance since 7 July'):(active==='intraday'?'Intraday portfolio value':'Portfolio value since 7 July');
     document.getElementById('chart-date').textContent=active==='intraday'?htmlDate(feed.intraday.sessionDate)+' · KST':'through '+htmlDate(data.rows.at(-1).date);
     if(percent){
       document.getElementById('chart-summary').textContent=series.map(s=>s.name+': '+asPercent(s.points.at(-1).value)).join(' · ');
-      document.getElementById('chart-note').textContent=(active==='intraday'?'Both lines start at 0% at the first quote of the day (Korea time).':'Both lines start at 0% on 7 July.')+' Returns compound between chart points. New money counts toward the opening balance of the interval in which it was added, so a deposit alone does not change performance.';
+      document.getElementById('chart-note').textContent=(active==='intraday'?'Performance starts at 0% at the first quote of the day (Korea time).':'Performance starts at 0% on 7 July.')+' Returns compound between chart points. New money counts toward the opening balance of the interval in which it was added, so a deposit alone does not change performance.';
       return;
     }
-    const changes=data.series.map(s=>{
+    const changes=selected.map(s=>{
       const current=s.points.at(-1).value,base=active==='intraday'?s.points[0].value:s.cost;
       const contribution=active==='intraday'?s.points.at(-1).invested-s.points[0].invested:0;
       const delta=current-base-contribution;

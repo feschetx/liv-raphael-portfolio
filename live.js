@@ -1,5 +1,5 @@
 import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
-import {createChartController} from './portfolio-charts.js?v=20261111-performance';
+import {createChartController} from './portfolio-charts.js?v=20261111-owner';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
