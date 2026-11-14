@@ -41,7 +41,7 @@ test('both charts finish at the same portfolio value as the quote cards',async()
 
 test('Nvidia charts reconcile with current cards and do not backdate the purchase',async()=>{
   const portfolio=JSON.parse(await fs.readFile(new URL('../portfolio-data.json',import.meta.url),'utf8'));
-  const purchase=portfolio.positions.Raphael.nvidia,now=Date.parse(purchase.recorded_at)+300000;
+  const purchase=portfolio.positions.Raphael.nvidia.lots[0],now=Date.parse(purchase.recorded_at)+300000;
   const market={samsung:210000,eurkrw:1500,eurusd:purchase.purchase_fx,nvidia:purchase.buy_price};
   const quotes=Object.fromEntries(Object.entries(market).map(([key,price])=>[key,{price}]));
   const feed={quotes,history:portfolio.history,intraday:{points:[{...market,time:Date.parse(purchase.recorded_at)-300000},{...market,time:now}]}};

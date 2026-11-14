@@ -34,7 +34,7 @@ test('a weekend quote keeps its actual market date',()=>{
 });
 
 test('Nvidia is added only to Raphael from the purchase date, with investment separated from gains',()=>{
-  const purchase=data.positions.Raphael.nvidia;
+  const purchase=data.positions.Raphael.nvidia.lots[0];
   assert.equal(purchase.quantity,10);
   assert.equal(data.positions.Liv.nvidia,undefined);
   const quotes={...feed.quotes,nvidia:{price:purchase.buy_price},eurusd:{price:purchase.purchase_fx}};

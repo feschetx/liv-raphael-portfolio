@@ -52,15 +52,31 @@ export function valuePortfolio(position, quotes, bondYield, valuationDate, valua
   // Preserve the existing tracker's indicative bond valuation convention.
   const bond = position.bond_units * bondPrice / quotes.eurusd.price + position.bond_cost * bondYield * days / 365;
   let nvidia=0, addedCost=0;
-  const holding=position.nvidia;
-  const active=holding && valuationDate>=holding.purchase_date && (valuationTime===undefined || valuationTime>=Date.parse(holding.recorded_at));
-  if(active) {
+  const lots=nvidiaLots(position).filter(lot=>valuationDate>=lot.purchase_date && (valuationTime===undefined || valuationTime>=Date.parse(lot.recorded_at)));
+  for(const holding of lots) {
     if(!Number.isFinite(holding.quantity)||holding.quantity<0||!Number.isFinite(holding.cost)||holding.cost<0)throw new Error('Invalid Nvidia holding');
     if(!Number.isFinite(quotes.nvidia?.price)||quotes.nvidia.price<=0)throw new Error('Missing Nvidia quote');
-    nvidia=holding.quantity*quotes.nvidia.price/quotes.eurusd.price;
-    addedCost=holding.cost;
+    nvidia+=holding.quantity*quotes.nvidia.price/quotes.eurusd.price;
+    addedCost+=holding.cost;
   }
   const invested=position.cost+addedCost;
   const total = stock + bond + position.cash + nvidia;
   return {stock, bond, bondPrice, nvidia, invested, total, gain: total - invested, returnPercent: (total / invested - 1) * 100};
+}
+
+export function nvidiaLots(position) {
+  return position.nvidia ? (position.nvidia.lots ?? [position.nvidia]) : [];
+}
+
+// P&L is unrealised, excludes fees and uses each lot's recorded purchase FX.
+export function tradeRows(portfolio,quotes,valuationDate) {
+  return Object.entries(portfolio.positions).flatMap(([owner,p])=>{
+    const v=valuePortfolio(p,quotes,portfolio.snapshot.bond_yield,valuationDate);
+    const rows=[
+      {id:owner+'-samsung',owner,asset:'Samsung',date:p.purchase_date,quantity:p.shares,unit:'sh',currency:'KRW',buyPrice:p.stock_buy_price,currentPrice:quotes.samsung.price,cost:p.stock_cost,value:v.stock},
+      {id:owner+'-bond',owner,asset:'Alphabet bond 3.875% 2028',date:p.purchase_date,quantity:p.bond_units,unit:'$100 face',currency:'USD',buyPrice:p.bond_buy_price,currentPrice:v.bondPrice,cost:p.bond_cost,value:v.bond,estimated:true},
+      ...nvidiaLots(p).filter(l=>l.purchase_date<=valuationDate).map((l,i)=>({id:owner+'-nvda-'+i,owner,asset:'Nvidia (NVDA)',date:l.purchase_date,quantity:l.quantity,unit:'sh',currency:'USD',buyPrice:l.buy_price,currentPrice:quotes.nvidia.price,cost:l.cost,value:l.quantity*quotes.nvidia.price/quotes.eurusd.price,nativePnl:l.quantity*(quotes.nvidia.price-l.buy_price)}))
+    ];
+    return rows.map(r=>({...r,pnl:r.value-r.cost,returnPercent:(r.value/r.cost-1)*100}));
+  }).sort((a,b)=>b.date.localeCompare(a.date)||a.owner.localeCompare(b.owner)||a.asset.localeCompare(b.asset));
 }

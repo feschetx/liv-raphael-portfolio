@@ -1,4 +1,4 @@
-import {valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
+import {valuePortfolio} from './portfolio-math.js?v=20261114-lots';
 
 const hkDate=milliseconds=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Hong_Kong',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(milliseconds));
 const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(key=>[key,{price:row[key]}]));
@@ -156,7 +156,7 @@ export function createChartController() {
       return `${s.name}: ${euro.format(current)} (${signed(delta)}, ${delta<0?'−':'+'}${Math.abs(delta/base*100).toFixed(2)}%)`;
     });
     document.getElementById('chart-summary').textContent=changes.join(' · ')+(active==='intraday'?' change excluding added investment since the first available point.':' gain versus total recorded investment.');
-    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Stocks retain their latest quote outside trading hours; currencies can still move. New investments create a step in portfolio value and are excluded from the displayed change. The bond remains modeled.':'Daily market history is refreshed automatically. Nvidia enters Raphael’s portfolio on 11 November 2026; the increase from adding money is not a gain. The last point uses the latest available stock and currency quotes. The bond remains modeled.';
+    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Stocks retain their latest quote outside trading hours; currencies can still move. New investments create a step in portfolio value and are excluded from the displayed change. The bond remains modeled.':'Daily market history is refreshed automatically. Nvidia purchases enter Raphael’s portfolio on their recorded dates; the increase from adding money is not a gain. The last point uses the latest available stock and currency quotes. The bond remains modeled.';
   }
   historyButton.addEventListener('click',()=>{active='history';render();});
   intradayButton.addEventListener('click',()=>{active='intraday';render();});

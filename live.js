@@ -1,5 +1,6 @@
-import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261111-nvda1';
-import {createChartController} from './portfolio-charts.js?v=20261111-owner';
+import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261114-lots';
+import {createTradeController} from './trades.js?v=20261114-trades';
+import {createChartController} from './portfolio-charts.js?v=20261114-trades';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -12,12 +13,13 @@ const time = new Intl.DateTimeFormat(undefined, {month:'short', day:'numeric', h
 const signed = (n, percent=false) => (n < 0 ? '−' : n > 0 ? '+' : '') + (percent ? Math.abs(n).toFixed(2) + '%' : money.format(Math.abs(n)));
 let portfolio, lastGood, busy = false;
 const charts=createChartController();
+const trades=createTradeController();
 
 function state(text, mode) {status.textContent = text; status.dataset.state = mode;}
 function updateNumber(panel, field, value, text) {
   for (const cell of panel.querySelectorAll(`[data-field="${field}"]`)) {
     cell.textContent = text;
-    if (['gain','return','stock-gain','bond-gain'].includes(field)) {
+    if (['gain','return','stock-gain','bond-gain','nvidia-gain'].includes(field)) {
       cell.classList.toggle('neg', value < 0);
       cell.classList.toggle('pos', value > 0);
     }
@@ -57,6 +59,7 @@ function render(feed) {
   state(staleFeed ? 'Price feed is late — showing last available quotes' : staleQuotes ? 'Market quotes are delayed' : 'Automatic updates on · ' + (q.samsung.marketOpen ? 'Samsung market open' : 'Samsung market closed'), staleFeed || staleQuotes ? 'stale' : 'fresh');
   checked.textContent = 'Feed collected ' + time.format(new Date(feed.fetchedAt)) + '. Last checked ' + time.format(new Date()) + '.';
   charts.update(portfolio,feed);
+  trades.update(portfolio,feed.quotes,valuationDate);
   document.getElementById('snapshot-date').textContent = 'Holdings and both chart views update automatically from the dated market feed.';
 }
 async function refresh() {
@@ -69,6 +72,8 @@ async function refresh() {
       if (!p.ok) throw new Error('Saved holdings unavailable');
       portfolio = await p.json();
       charts.showSnapshot(portfolio);
+      const quotes=Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(k=>[k,{price:portfolio.snapshot[k]}]));
+      trades.update(portfolio,quotes,portfolio.snapshot.as_of);
     }
     const response = await fetch(FEED + '?minute=' + Math.floor(Date.now()/60000), {cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal:AbortSignal.timeout(12000)});
     if (!response.ok) throw new Error('Price feed unavailable');
