@@ -12,9 +12,9 @@ export function createTradeController(){
     const fragment=document.createDocumentFragment();
     for(const r of visible){
       const tr=document.createElement('tr');tr.dataset.tradeId=r.id;tr.dataset.owner=r.owner;
-      const values=[r.date,r.owner==='Raphael'?'Raph':r.owner,r.asset,r.quantity.toLocaleString('en-GB',{maximumFractionDigits:4})+' '+r.unit,price(r.buyPrice,r.currency),price(r.currentPrice,r.currency),euro.format(r.cost),euro.format(r.value),signed(r.pnl),(r.returnPercent<0?'−':'+')+Math.abs(r.returnPercent).toFixed(2)+'%'];
-      values.forEach((value,i)=>{const td=document.createElement('td');td.textContent=value;if(i>=3)td.className='num';if(i>=8)td.classList.add(r.pnl<0?'neg':r.pnl>0?'pos':'neutral');
-        if(i===8&&r.nativePnl!==undefined){const small=document.createElement('small');small.className='trade-secondary';small.textContent=(r.nativePnl<0?'−':r.nativePnl>0?'+':'')+'US$'+Math.abs(r.nativePnl).toFixed(2);td.append(small);}
+      const values=[r.date,r.owner==='Raphael'?'Raph':r.owner,r.asset,r.quantity.toLocaleString('en-GB',{maximumFractionDigits:4})+' '+r.unit,price(r.buyPrice,r.currency),price(r.currentPrice,r.currency),signed(r.pnl),(r.returnPercent<0?'−':'+')+Math.abs(r.returnPercent).toFixed(2)+'%'];
+      values.forEach((value,i)=>{const td=document.createElement('td');td.textContent=value;if(i>=3)td.className='num';if(i>=6)td.classList.add(r.pnl<0?'neg':r.pnl>0?'pos':'neutral');
+        if(i===6&&r.nativePnl!==undefined){const small=document.createElement('small');small.className='trade-secondary';small.textContent=(r.nativePnl<0?'−':r.nativePnl>0?'+':'')+'US$'+Math.abs(r.nativePnl).toFixed(2);td.append(small);}
         if(i===2&&r.estimated){const small=document.createElement('small');small.className='trade-estimated';small.textContent='Estimated bond value';td.append(small);}
         tr.append(td);
       });fragment.append(tr);
