@@ -1,6 +1,6 @@
 import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261114-lots';
-import {createTradeController} from './trades.js?v=20261114-trades';
-import {createChartController} from './portfolio-charts.js?v=20261114-trades';
+import {createTradeController} from './trades.js?v=20261114-trades2';
+import {createChartController} from './portfolio-charts.js?v=20261114-trades2';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
