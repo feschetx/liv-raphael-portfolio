@@ -1,6 +1,6 @@
-import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261124-ttwo';
-import {createTradeController} from './trades.js?v=20261124-ttwo';
-import {createChartController} from './portfolio-charts.js?v=20261124-ttwo';
+import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261124-ttwo2';
+import {createTradeController} from './trades.js?v=20261124-ttwo2';
+import {createChartController} from './portfolio-charts.js?v=20261124-ttwo2';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -63,6 +63,7 @@ function render(feed) {
   const staleFeed = Date.now() - Date.parse(feed.fetchedAt) > 15 * 60000;
   const staleQuotes = Object.values(q).some(quote=>quote.marketOpen && Date.now() - Date.parse(quote.asOf) > 30 * 60000);
   state(staleFeed ? 'Price feed is late — showing last available quotes' : staleQuotes ? 'Market quotes are delayed' : 'Automatic updates on · ' + (q.samsung.marketOpen ? 'Samsung market open' : 'Samsung market closed'), staleFeed || staleQuotes ? 'stale' : 'fresh');
+  if(feed.savedHoldingQuote)state('Price feed updating — Take-Two uses the saved dated quote','stale');
   checked.textContent = 'Feed collected ' + time.format(new Date(feed.fetchedAt)) + '. Last checked ' + time.format(new Date()) + '.';
   charts.update(portfolio,feed);
   trades.update(portfolio,feed.quotes,valuationDate);
@@ -83,7 +84,13 @@ async function refresh() {
     }
     const response = await fetch(FEED + '?minute=' + Math.floor(Date.now()/60000), {cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal:AbortSignal.timeout(12000)});
     if (!response.ok) throw new Error('Price feed unavailable');
-    const feed = validateFeed(await response.json());
+    const incoming = await response.json();
+    // Newly added instruments can reach Pages before the public feed cache refreshes.
+    if (portfolio.positions.Liv.taketwo && !incoming.quotes?.taketwo) {
+      incoming.quotes.taketwo={symbol:'TTWO',currency:'USD',price:portfolio.snapshot.taketwo,asOf:portfolio.snapshot.taketwo_as_of,marketOpen:false,session:'Saved dated quote while feed updates'};
+      incoming.savedHoldingQuote=true;
+    }
+    const feed = validateFeed(incoming);
     if (lastGood && Date.parse(feed.fetchedAt) < Date.parse(lastGood.fetchedAt)) throw new Error('Older feed response');
     render(feed); lastGood = feed;
   } catch (error) {
