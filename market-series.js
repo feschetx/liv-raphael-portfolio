@@ -21,9 +21,10 @@ export function joinIntraday(series,quotes) {
     const stock=atOrBefore(series.samsung,time),krw=atOrBefore(series.eurkrw,time),usd=atOrBefore(series.eurusd,time);
     if(!stock||!krw||!usd||time-stock[0]>7*86400||time-krw[0]>5400||time-usd[0]>5400)continue;
     const nvidia=series.nvidia?atOrBefore(series.nvidia,time):null;
-    points.push({time:time*1000,samsung:stock[1],eurkrw:krw[1],eurusd:usd[1],...(nvidia?{nvidia:nvidia[1]}:{})});
+    const taketwo=series.taketwo?atOrBefore(series.taketwo,time):null;
+    points.push({time:time*1000,samsung:stock[1],eurkrw:krw[1],eurusd:usd[1],...(nvidia?{nvidia:nvidia[1]}:{}),...(taketwo?{taketwo:taketwo[1]}:{})});
   }
-  const last={time:latest*1000,samsung:quotes.samsung.price,eurkrw:quotes.eurkrw.price,eurusd:quotes.eurusd.price,...(quotes.nvidia?{nvidia:quotes.nvidia.price}:{})};
+  const last={time:latest*1000,samsung:quotes.samsung.price,eurkrw:quotes.eurkrw.price,eurusd:quotes.eurusd.price,...(quotes.nvidia?{nvidia:quotes.nvidia.price}:{}),...(quotes.taketwo?{taketwo:quotes.taketwo.price}:{})};
   if(points.at(-1)?.time===last.time)points[points.length-1]=last;else points.push(last);
   return {sessionDate,timeZone:'Asia/Seoul',intervalMinutes:5,points};
 }

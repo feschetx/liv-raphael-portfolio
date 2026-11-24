@@ -18,9 +18,9 @@ export function modelBondPrice(isoDate, annualYield) {
 export function validateFeed(feed, now = Date.now()) {
   if (![1,2].includes(feed?.version) || !Number.isFinite(Date.parse(feed.fetchedAt))) throw new Error('Invalid price feed');
   if (Date.parse(feed.fetchedAt) > now + 120000) throw new Error('Price feed timestamp is in the future');
-  for (const key of ['samsung', 'eurkrw', 'eurusd', ...(feed.quotes?.nvidia ? ['nvidia'] : [])]) {
+  for (const key of ['samsung', 'eurkrw', 'eurusd', ...(feed.quotes?.nvidia ? ['nvidia'] : []), ...(feed.quotes?.taketwo ? ['taketwo'] : [])]) {
     const quote = feed.quotes?.[key];
-    const expected = {samsung:['005930.KS','KRW'],eurkrw:['EURKRW=X','KRW'],eurusd:['EURUSD=X','USD'],nvidia:['NVDA','USD']}[key];
+    const expected = {samsung:['005930.KS','KRW'],eurkrw:['EURKRW=X','KRW'],eurusd:['EURUSD=X','USD'],nvidia:['NVDA','USD'],taketwo:['TTWO','USD']}[key];
     if (quote?.symbol !== expected[0] || quote.currency !== expected[1]) throw new Error('Wrong instrument or currency: ' + key);
     const time = Date.parse(quote?.asOf);
     if (!Number.isFinite(quote?.price) || quote.price <= 0 || !Number.isFinite(time) || time > now + 120000) throw new Error('Missing or invalid quote: ' + key);
@@ -59,9 +59,16 @@ export function valuePortfolio(position, quotes, bondYield, valuationDate, valua
     nvidia+=holding.quantity*quotes.nvidia.price/quotes.eurusd.price;
     addedCost+=holding.cost;
   }
+  let taketwo=0;
+  const tt=position.taketwo;
+  if(tt && valuationDate>=tt.purchase_date && (valuationTime===undefined || valuationTime>=Date.parse(tt.recorded_at))) {
+    if(!Number.isFinite(quotes.taketwo?.price)||quotes.taketwo.price<=0)throw new Error('Missing Take-Two quote');
+    taketwo=tt.quantity*quotes.taketwo.price/quotes.eurusd.price;
+    addedCost+=tt.cost;
+  }
   const invested=position.cost+addedCost;
-  const total = stock + bond + position.cash + nvidia;
-  return {stock, bond, bondPrice, nvidia, invested, total, gain: total - invested, returnPercent: (total / invested - 1) * 100};
+  const total = stock + bond + position.cash + nvidia + taketwo;
+  return {stock, bond, bondPrice, nvidia, taketwo, invested, total, gain: total - invested, returnPercent: (total / invested - 1) * 100};
 }
 
 export function nvidiaLots(position) {
@@ -75,6 +82,7 @@ export function tradeRows(portfolio,quotes,valuationDate) {
     const rows=[
       {id:owner+'-samsung',owner,asset:'Samsung',date:p.purchase_date,quantity:p.shares,unit:'sh',currency:'KRW',buyPrice:p.stock_buy_price,currentPrice:quotes.samsung.price,cost:p.stock_cost,value:v.stock},
       {id:owner+'-bond',owner,asset:'Alphabet bond 3.875% 2028',date:p.purchase_date,quantity:p.bond_units,unit:'$100 face',currency:'USD',buyPrice:p.bond_buy_price,currentPrice:v.bondPrice,cost:p.bond_cost,value:v.bond,estimated:true},
+      ...(p.taketwo && p.taketwo.purchase_date<=valuationDate ? [{id:owner+'-ttwo',owner,asset:'Take-Two (TTWO)',date:p.taketwo.purchase_date,quantity:p.taketwo.quantity,unit:'sh',currency:'USD',buyPrice:p.taketwo.buy_price,currentPrice:quotes.taketwo.price,cost:p.taketwo.cost,value:v.taketwo,nativePnl:p.taketwo.quantity*(quotes.taketwo.price-p.taketwo.buy_price)}] : []),
       ...nvidiaLots(p).filter(l=>l.purchase_date<=valuationDate).map((l,i)=>({id:owner+'-nvda-'+i,owner,asset:'Nvidia (NVDA)',date:l.purchase_date,quantity:l.quantity,unit:'sh',currency:'USD',buyPrice:l.buy_price,currentPrice:quotes.nvidia.price,cost:l.cost,value:l.quantity*quotes.nvidia.price/quotes.eurusd.price,nativePnl:l.quantity*(quotes.nvidia.price-l.buy_price)}))
     ];
     return rows.map(r=>({...r,pnl:r.value-r.cost,returnPercent:(r.value/r.cost-1)*100}));

@@ -1,6 +1,6 @@
-import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261114-lots';
-import {createTradeController} from './trades.js?v=20261114-trades2';
-import {createChartController} from './portfolio-charts.js?v=20261114-trades2';
+import {validateFeed, valuePortfolio} from './portfolio-math.js?v=20261124-ttwo';
+import {createTradeController} from './trades.js?v=20261124-ttwo';
+import {createChartController} from './portfolio-charts.js?v=20261124-ttwo';
 
 const FEED = 'https://raw.githubusercontent.com/feschetx/liv-raphael-portfolio/market-data/quotes.json';
 const status = document.getElementById('live-status');
@@ -19,7 +19,7 @@ function state(text, mode) {status.textContent = text; status.dataset.state = mo
 function updateNumber(panel, field, value, text) {
   for (const cell of panel.querySelectorAll(`[data-field="${field}"]`)) {
     cell.textContent = text;
-    if (['gain','return','stock-gain','bond-gain','nvidia-gain'].includes(field)) {
+    if (['gain','return','stock-gain','bond-gain','nvidia-gain','taketwo-gain'].includes(field)) {
       cell.classList.toggle('neg', value < 0);
       cell.classList.toggle('pos', value > 0);
     }
@@ -42,6 +42,11 @@ function render(feed) {
     updateNumber(panel,'bond-price',v.bondPrice,v.bondPrice.toFixed(2) + ' ·model');
     updateNumber(panel,'bond-value',v.bond,money.format(v.bond));
     updateNumber(panel,'bond-gain',v.bond-position.bond_cost,signed(v.bond-position.bond_cost));
+    if(position.taketwo) {
+      updateNumber(panel,'taketwo-price',feed.quotes.taketwo.price,'US$'+feed.quotes.taketwo.price.toFixed(2));
+      updateNumber(panel,'taketwo-value',v.taketwo,money.format(v.taketwo));
+      updateNumber(panel,'taketwo-gain',v.taketwo-position.taketwo.cost,signed(v.taketwo-position.taketwo.cost));
+    }
     if(position.nvidia) {
       updateNumber(panel,'nvidia-price',feed.quotes.nvidia.price,'US$'+feed.quotes.nvidia.price.toFixed(2));
       updateNumber(panel,'nvidia-value',v.nvidia,money.format(v.nvidia));
@@ -54,6 +59,7 @@ function render(feed) {
   const q = feed.quotes;
   times.textContent = `Samsung quote: ${time.format(new Date(q.samsung.asOf))}. EUR/KRW: ${time.format(new Date(q.eurkrw.asOf))}. EUR/USD: ${time.format(new Date(q.eurusd.asOf))}. Times shown in your time zone.`;
   if(q.nvidia)times.textContent+=` Nvidia: ${time.format(new Date(q.nvidia.asOf))} (${q.nvidia.session??'latest available quote'}).`;
+  if(q.taketwo)times.textContent+=` Take-Two: ${time.format(new Date(q.taketwo.asOf))} (${q.taketwo.session??'latest available quote'}).`;
   const staleFeed = Date.now() - Date.parse(feed.fetchedAt) > 15 * 60000;
   const staleQuotes = Object.values(q).some(quote=>quote.marketOpen && Date.now() - Date.parse(quote.asOf) > 30 * 60000);
   state(staleFeed ? 'Price feed is late — showing last available quotes' : staleQuotes ? 'Market quotes are delayed' : 'Automatic updates on · ' + (q.samsung.marketOpen ? 'Samsung market open' : 'Samsung market closed'), staleFeed || staleQuotes ? 'stale' : 'fresh');
@@ -72,7 +78,7 @@ async function refresh() {
       if (!p.ok) throw new Error('Saved holdings unavailable');
       portfolio = await p.json();
       charts.showSnapshot(portfolio);
-      const quotes=Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(k=>[k,{price:portfolio.snapshot[k]}]));
+      const quotes=Object.fromEntries(['samsung','eurkrw','eurusd','nvidia','taketwo'].map(k=>[k,{price:portfolio.snapshot[k]}]));
       trades.update(portfolio,quotes,portfolio.snapshot.as_of);
     }
     const response = await fetch(FEED + '?minute=' + Math.floor(Date.now()/60000), {cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal:AbortSignal.timeout(12000)});

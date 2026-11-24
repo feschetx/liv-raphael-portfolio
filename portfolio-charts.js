@@ -1,7 +1,7 @@
-import {valuePortfolio} from './portfolio-math.js?v=20261114-lots';
+import {valuePortfolio} from './portfolio-math.js?v=20261124-ttwo';
 
 const hkDate=milliseconds=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Hong_Kong',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(milliseconds));
-const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(key=>[key,{price:row[key]}]));
+const rowQuotes=row=>Object.fromEntries(['samsung','eurkrw','eurusd','nvidia','taketwo'].map(key=>[key,{price:row[key]}]));
 const euro=new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR'});
 const signed=value=>(value<0?'−':'+')+euro.format(Math.abs(value));
 const pct=new Intl.NumberFormat(undefined,{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2,signDisplay:'exceptZero'});
@@ -27,7 +27,7 @@ export function chartData(portfolio,feed,mode,now=Date.now()) {
   else {
     const date=hkDate(now);
     const dated=new Map((feed.history??portfolio.history).filter(row=>row.date<=date).map(row=>[row.date,{...row,time:Date.parse(row.date+'T00:00:00Z')}]));
-    dated.set(date,{date,time:Date.parse(date+'T00:00:00Z'),samsung:feed.quotes.samsung.price,eurkrw:feed.quotes.eurkrw.price,eurusd:feed.quotes.eurusd.price,nvidia:feed.quotes.nvidia?.price});
+    dated.set(date,{date,time:Date.parse(date+'T00:00:00Z'),samsung:feed.quotes.samsung.price,eurkrw:feed.quotes.eurkrw.price,eurusd:feed.quotes.eurusd.price,nvidia:feed.quotes.nvidia?.price,taketwo:feed.quotes.taketwo?.price});
     rows=[...dated.values()].sort((a,b)=>a.time-b.time);
   }
   const series=Object.entries(portfolio.positions).map(([name,position],index)=>{
@@ -156,7 +156,7 @@ export function createChartController() {
       return `${s.name}: ${euro.format(current)} (${signed(delta)}, ${delta<0?'−':'+'}${Math.abs(delta/base*100).toFixed(2)}%)`;
     });
     document.getElementById('chart-summary').textContent=changes.join(' · ')+(active==='intraday'?' change excluding added investment since the first available point.':' gain versus total recorded investment.');
-    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Stocks retain their latest quote outside trading hours; currencies can still move. New investments create a step in portfolio value and are excluded from the displayed change. The bond remains modeled.':'Daily market history is refreshed automatically. Nvidia purchases enter Raphael’s portfolio on their recorded dates; the increase from adding money is not a gain. The last point uses the latest available stock and currency quotes. The bond remains modeled.';
+    document.getElementById('chart-note').textContent=active==='intraday'?'Five-minute source data, with the latest quote added. Times are Korea Standard Time (KST). Stocks retain their latest quote outside trading hours; currencies can still move. New investments create a step in portfolio value and are excluded from the displayed change. The bond remains modeled.':'Daily market history is refreshed automatically. Additional stock purchases enter each portfolio on their recorded dates; the increase from adding money is not a gain. The last point uses the latest available stock and currency quotes. The bond remains modeled.';
   }
   historyButton.addEventListener('click',()=>{active='history';render();});
   intradayButton.addEventListener('click',()=>{active='intraday';render();});

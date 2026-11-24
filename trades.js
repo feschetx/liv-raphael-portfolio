@@ -1,4 +1,4 @@
-import {tradeRows} from './portfolio-math.js?v=20261114-lots';
+import {tradeRows} from './portfolio-math.js?v=20261124-ttwo';
 const euro=new Intl.NumberFormat('en-GB',{style:'currency',currency:'EUR'});
 const signed=n=>(n<0?'−':n>0?'+':'')+euro.format(Math.abs(n));
 const price=(n,ccy)=>(ccy==='KRW'?'₩':'US$')+n.toLocaleString('en-GB',{minimumFractionDigits:ccy==='KRW'?0:2,maximumFractionDigits:ccy==='KRW'?0:2});

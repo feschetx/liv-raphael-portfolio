@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {normalizeBars,joinIntraday,mergeDailyHistory} from '../market-series.js';
 
-const symbols={samsung:['005930.KS','KRW'],eurkrw:['EURKRW=X','KRW'],eurusd:['EURUSD=X','USD'],nvidia:['NVDA','USD']};
+const symbols={samsung:['005930.KS','KRW'],eurkrw:['EURKRW=X','KRW'],eurusd:['EURUSD=X','USD'],nvidia:['NVDA','USD'],taketwo:['TTWO','USD']};
 const REPO='feschetx/liv-raphael-portfolio';
 const timeout=()=>AbortSignal.timeout(15000);
 async function chart(symbol,query) {
@@ -19,14 +19,14 @@ async function chart(symbol,query) {
   throw lastError;
 }
 async function asset(key,[symbol,currency]) {
-  const payload=await chart(symbol,'interval=5m&range=5d'+(key==='nvidia'?'&includePrePost=true':''));
+  const payload=await chart(symbol,'interval=5m&range=5d'+(['nvidia','taketwo'].includes(key)?'&includePrePost=true':''));
   const meta=payload.meta;
   if(meta.currency!==currency||!Number.isFinite(meta.regularMarketPrice)||meta.regularMarketPrice<=0||!Number.isFinite(meta.regularMarketTime))throw new Error('Invalid '+key+' quote');
   const age=Date.now()-meta.regularMarketTime*1000;
   if(age < -120000||age>7*86400000)throw new Error('Stale '+key+' quote');
   const regular=meta.currentTradingPeriod?.regular,now=Date.now()/1000;
   const bars=normalizeBars(payload);
-  const latest=key==='nvidia'?bars.filter(([t])=>t<=now+120).at(-1):null;
+  const latest=['nvidia','taketwo'].includes(key)?bars.filter(([t])=>t<=now+120).at(-1):null;
   const quoteTime=latest&&latest[0]>meta.regularMarketTime?latest[0]:meta.regularMarketTime;
   const quotePrice=latest&&latest[0]>meta.regularMarketTime?latest[1]:meta.regularMarketPrice;
   const session=quoteTime>meta.regularMarketTime?'Extended hours':'Regular session';
@@ -60,27 +60,28 @@ export async function collectQuotes() {
   const old=await previousFeed();
   const history=old.history?.length?old.history:baseline.history;
   const start=Math.floor(Date.parse(history.at(-1).date+'T00:00:00Z')/1000)-7*86400;
-  const [assets,daily,fx,nvidiaDaily]=await Promise.all([
+  const [assets,daily,fx,usDaily]=await Promise.all([
     Promise.all(Object.entries(symbols).map(([key,value])=>asset(key,value))),
     chart('005930.KS',`interval=1d&period1=${start}&period2=${Math.floor(Date.now()/1000)+86400}`),
     historicalFx(new Date(start*1000).toISOString().slice(0,10)),
-    chart('NVDA',`interval=1d&period1=${Math.floor(Date.parse('2026-11-10T00:00:00Z')/1000)}&period2=${Math.floor(Date.now()/1000)+86400}`)
+    Promise.all(['NVDA','TTWO'].map(symbol=>chart(symbol,`interval=1d&period1=${Math.floor(Date.parse('2026-11-10T00:00:00Z')/1000)}&period2=${Math.floor(Date.now()/1000)+86400}`)))
   ]);
   const quotes=Object.fromEntries(assets.map(([key,value])=>[key,value.quote]));
   const intraday=joinIntraday(Object.fromEntries(assets.map(([key,value])=>[key,value.bars])),quotes);
   const merged=mergeDailyHistory(history,normalizeBars(daily),fx);
-  const holding=baseline.positions.Raphael.nvidia;
-  if(holding) {
-    const previousNvda=new Map(history.filter(r=>r.nvidia>0).map(r=>[r.date,r.nvidia]));
-    const nvidiaBars=assets.find(([key])=>key==='nvidia')[1].bars;
+  for(const [index,key] of ['nvidia','taketwo'].entries()) {
+    const holding=Object.values(baseline.positions).map(p=>p[key]).find(Boolean);
+    if(!holding)continue;
+    const previousNvda=new Map(history.filter(r=>r[key]>0).map(r=>[r.date,r[key]]));
+    const nvidiaBars=assets.find(([assetKey])=>assetKey===key)[1].bars;
     // US closes occur the next calendar day in Hong Kong. Use only completed
     // sessions available by the end of each Hong Kong history date.
-    const closes=normalizeBars(nvidiaDaily).map(([t,p])=>[t+6.5*3600,p]).filter(([t])=>t*1000<=Date.now());
+    const closes=normalizeBars(usDaily[index]).map(([t,p])=>[t+6.5*3600,p]).filter(([t])=>t*1000<=Date.now());
     for(const row of merged)if(row.date>=holding.purchase_date) {
       const cutoff=Math.min(Date.parse(row.date+'T23:59:59+08:00'),Date.now())/1000;
       const eligible=closes.filter(([t])=>t<=cutoff&&t*1000>=Date.parse(holding.recorded_at)).at(-1);
       const intraday=nvidiaBars.filter(([t])=>t<=cutoff&&t*1000>=Date.parse(holding.recorded_at)).at(-1);
-      row.nvidia=intraday?.[1]??eligible?.[1]??previousNvda.get(row.date)??holding.buy_price;
+      row[key]=intraday?.[1]??eligible?.[1]??previousNvda.get(row.date)??holding.buy_price;
     }
   }
   return {version:2,fetchedAt:new Date().toISOString(),source:'Yahoo Finance delayed market data; ECB historical FX',expectedRefreshSeconds:300,quotes,history:merged,intraday};

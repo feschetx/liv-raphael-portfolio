@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {valuePortfolio,tradeRows} from '../portfolio-math.js';
 const data=JSON.parse(await fs.readFile(new URL('../portfolio-data.json',import.meta.url),'utf8'));
-const quotes=Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(k=>[k,{price:data.snapshot[k]}]));
+const quotes=Object.fromEntries(['samsung','eurkrw','eurusd','nvidia'].map(k=>[k,{price:k==='nvidia'?161.01:data.snapshot[k]}]));
 test('a second purchase adds only its dated quantity and cost, preserving earlier history',()=>{
  const p=data.positions.Raphael,lot=p.nvidia.lots[1],time=Date.parse(lot.recorded_at);
  const before=valuePortfolio(p,quotes,.0435,'2026-11-13');

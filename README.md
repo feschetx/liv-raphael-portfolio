@@ -1,3 +1,5 @@
+24 November 2026: Liv added EUR300 of Take-Two (TTWO), 1.569374550683 fractional shares at US$208.65. This is the lowest regular-session close across 18, 19, 20 and 23 Nov; reference close date 19 Nov. The holding is recorded from 24 Nov, using EUR/USD reference 1.0915, with existing EUR100 cash retained and fees excluded. Source workbook Liv row 8 and Prices row 13. The taketwo JSON holding, cloud collector, both chart views and Trades P&L support TTWO. Evidence is in Portfolio updates/taketwo-2026-11-24. The reference price is requested bookkeeping, not broker execution confirmation.
+
 # Liv and Raphael portfolio dashboard
 
 Public dashboard: https://feschetx.github.io/liv-raphael-portfolio/
